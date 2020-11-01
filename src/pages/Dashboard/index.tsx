@@ -21,6 +21,7 @@ import {
 import logoImg from '../../assets/logo.svg';
 import api from '../../services/api';
 import { ptBR } from 'date-fns/locale';
+import { Link } from 'react-router-dom';
 
 interface MonthAvailabilityItem {
   day: number;
@@ -134,14 +135,16 @@ const Dashboard: React.FC = () => {
       <Header>
         <HeaderContent>
           <img src={logoImg} alt="gobarber" />
-          <Profile>
-            <img src={avatar_url} alt="profile" />
+          <Link to="/profile">
+            <Profile>
+              <img src={avatar_url} alt="profile" />
 
-            <div>
-              <span>Bem-vindo,</span>
-              <strong>{name}</strong>
-            </div>
-          </Profile>
+              <div>
+                <span>Bem-vindo,</span>
+                <strong>{name}</strong>
+              </div>
+            </Profile>
+          </Link>
 
           <button type="button" onClick={signOut}>
             <FiPower />
