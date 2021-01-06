@@ -27,6 +27,8 @@ interface ProfileFromData {
   name: string;
   email: string;
   password: string;
+  old_password: string;
+  password_confirmation: string;
 }
 
 type FormHandlesProps = FormHandles;
@@ -36,7 +38,7 @@ const Profile: React.FC = () => {
   const { addToast } = useToast();
   const history = useHistory();
 
-  const { user, updateUser } = useAuth()
+  const { user, updateUser } = useAuth();
 
   const handleSubmit = useCallback(
     async (data: ProfileFromData) => {
@@ -47,21 +49,55 @@ const Profile: React.FC = () => {
           email: Yup.string()
             .required('E-mail obrigatório')
             .email('Digite um e-mail válido'),
-          password: Yup.string().min(6, 'No mínimo 6 dígitos'),
+          ols_password: Yup.string(),
+          password: Yup.string().when('old_password', {
+            is: val => !!val.length,
+            then: Yup.string().min(6, 'minimo 6 digitos'),
+            otherwise: Yup.string(),
+          }),
+          password_confirmation: Yup.string()
+            .when('old_password', {
+              is: val => !!val.length,
+              then: Yup.string().min(6, 'minimo 6 digitos'),
+              otherwise: Yup.string(),
+            })
+            .oneOf([Yup.ref('password'), undefined], 'Confirmação incorreta'),
         });
 
         await schema.validate(data, {
           abortEarly: false,
         });
 
-        await api.post('users', data);
+        const {
+          name,
+          email,
+          old_password,
+          password,
+          password_confirmation,
+        } = data;
 
-        history.push('/');
+        const formData = {
+          name,
+          email,
+          ...(old_password
+            ? {
+                old_password,
+                password,
+                password_confirmation,
+              }
+            : {}),
+        };
+
+        const response = await api.put('/profile', formData);
+
+        updateUser(response.data);
+
+        history.push('/dashboard');
 
         addToast({
           type: 'success',
-          title: 'Seu cadastro foi criado',
-          description: 'Você já pode fazer seu logon',
+          title: 'Perfil atualizado',
+          description: 'Suas informações foram atualizadas com sucesso!',
         });
       } catch (err) {
         if (err instanceof Yup.ValidationError) {
@@ -74,32 +110,35 @@ const Profile: React.FC = () => {
 
         addToast({
           type: 'error',
-          title: 'Erro no cadastro',
+          title: 'Erro na atualização',
           description:
-            'Ocorreu um erro ao cadastrar, tente novamente mais tarde',
+            'Ocorreu um erro na atualização, tente novamente mais tarde',
         });
       }
     },
-    [addToast, history],
+    [addToast, history, updateUser],
   );
 
-  const handleAvatarChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      console.log(e.target.files[0])
-      const data = new FormData();
+  const handleAvatarChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files) {
+        console.log(e.target.files[0]);
+        const data = new FormData();
 
-      data.append('avatar', e.target.files[0]);
+        data.append('avatar', e.target.files[0]);
 
-      api.patch('/users/avatar', data).then((response) => {
-        updateUser(response.data)
+        api.patch('/users/avatar', data).then(response => {
+          updateUser(response.data);
 
-        addToast({
-          type: 'success',
-          title: 'Avatar atualizado'
-        })
-      })
-    }
-  }, [])
+          addToast({
+            type: 'success',
+            title: 'Avatar atualizado',
+          });
+        });
+      }
+    },
+    [addToast, updateUser],
+  );
   return (
     <Container>
       <header>
@@ -111,52 +150,48 @@ const Profile: React.FC = () => {
       </header>
       <Content>
         <AnimationContainer>
-          <Form ref={formRef} onSubmit={handleSubmit} initialData={{
-            name: user.name,
-            email: user.email
-          }}>
+          <Form
+            ref={formRef}
+            onSubmit={handleSubmit}
+            initialData={{
+              name: user.name,
+              email: user.email,
+            }}
+          >
             <AvatarInput>
               <img src={user.avatar_url} alt={user.name} />
               <label htmlFor="avatar">
                 <FiCamera />
-                <input type="file" id="avatar" onChange={handleAvatarChange}/>
+                <input type="file" id="avatar" onChange={handleAvatarChange} />
               </label>
             </AvatarInput>
 
             <h1>Meu Perfil</h1>
 
-            <Input
-              name="name"
-              icon={FiUser}
-              placeholder="Nome"
-            />
+            <Input name="name" icon={FiUser} placeholder="Nome" />
 
-            <Input
-              name="email"
-              icon={FiMail}
-              placeholder="E-mail"
-            />
+            <Input name="email" icon={FiMail} placeholder="E-mail" />
 
-          <InputSection>
-            <Input
-              name="old_password"
-              icon={FiLock}
-              placeholder="Senha atual"
-              type="passowrd"
-            />
-            <Input
-              name="password"
-              icon={FiLock}
-              placeholder="Nova Senha"
-              type="passowrd"
-            />
-            <Input
-              name="password_confirmation"
-              icon={FiLock}
-              placeholder="Confirmar Senha"
-              type="passowrd"
-            />
-          </InputSection>
+            <InputSection>
+              <Input
+                name="old_password"
+                icon={FiLock}
+                placeholder="Senha atual"
+                type="password"
+              />
+              <Input
+                name="password"
+                icon={FiLock}
+                placeholder="Nova Senha"
+                type="password"
+              />
+              <Input
+                name="password_confirmation"
+                icon={FiLock}
+                placeholder="Confirmar Senha"
+                type="password"
+              />
+            </InputSection>
 
             <Button>Confirmar alterações</Button>
           </Form>
